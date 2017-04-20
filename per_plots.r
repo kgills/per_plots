@@ -6,30 +6,50 @@ file.names <- dir(getwd(), pattern =".csv")
 
 for(i in 1:length(file.names)) {
     # Import the data
-    per_data = read.csv(file.names[i], header=TRUE)
+    per_data = read.csv(file.names[i], header=TRUE, comment.char="#")
+
+    file_sub = tools::file_path_sans_ext(file.names[i])
+
+    # Read the comments
+    per_file = file(file.names[i], "r")
+    comments = ""
+    while(TRUE) {
+        line = readLines(per_file, n=1)
+        if(grepl(x = line, pattern = "#")) {
+            line = sub(pattern="#", replacement="", x=line)
+            comments = paste(comments, line, sep="\n")
+        } else {
+            break
+        }
+    }
+    close(per_file)
 
     # Create the heat map
-    heat_map<-ggplot(data=per_data, aes(x=Power, y=Channel), xlab=seq(-10, -100), ylab=seq(0, 40))+
+    heat_map<-ggplot(data=per_data, aes(x=Power, y=Channel, z=PER), xlab=seq(-10, -100), ylab=seq(0, 40))+
         geom_tile(aes(fill=PER)) +
         theme(panel.background=element_blank()) +
-        scale_x_continuous(trans = "reverse") +
-        labs(x="Power dBm", y="Channel") +
-        scale_fill_gradient(low="blue", high="red", limits=c(0, 100))
+        scale_x_continuous(trans = "reverse", breaks=seq(0, -100, -10)) +
+        scale_y_continuous(breaks=seq(0, 40, 5)) +
+        stat_contour(bins=10, colour="white", size=0.3) +
+        labs(x="Power dBm", y="Channel", subtitle=comments, title=paste(file_sub, "PER heat map", sep=" ")) +
+        scale_fill_gradient2(low="blue", mid="green", high="red", midpoint=50)
 
     # Save the heat map
-    png(filename=paste(tools::file_path_sans_ext(file.names[i]),"_heat",".png", sep=""), width=640, height=500)
+    png(filename=paste(file_sub ,"_heat",".png", sep=""), width=800, height=700)
     print(heat_map)
     dev.off()
 
     # Create the line plot
     line_plot<-ggplot(data=per_data, aes(x=Power, y=PER, linetype=factor(Channel), color=Channel))+
         geom_line() +
-        scale_x_continuous(trans = "reverse") +
-        labs(x="Power dBm", y="PER") +
+        scale_x_continuous(trans="reverse", breaks=seq(0, -100, -10)) +
+        scale_y_continuous(breaks=seq(0, 50, 10), limits=c(0,50)) +
+        geom_hline(yintercept=c(10,20,30), colour="red", linetype=2)+
+        labs(x="Power dBm", y="PER", subtitle=comments, title=paste(file_sub, "PER scatter plot", sep=" ")) +
         theme(panel.background=element_blank(), legend.position='none')
 
     # Save the line plot
-    png(filename=paste(tools::file_path_sans_ext(file.names[i]),"_line",".png", sep=""), width=640, height=500)
+    png(filename=paste(file_sub,"_line",".png", sep=""), width=800, height=700)
     print(line_plot)
     dev.off()
 }
